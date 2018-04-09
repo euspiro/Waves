@@ -12,12 +12,26 @@ import scorex.transaction.{Proofs, Transaction}
 object Gen {
   private def random = ThreadLocalRandom.current
 
+//  def txs(minFee: Long, maxFee: Long, senderAccounts: Seq[PrivateKeyAccount], recipientGen: Iterator[Address]): Iterator[Transaction] = {
+//    val senderGen = Iterator.randomContinually(senderAccounts)
+//    val feeGen    = Iterator.continually(minFee + random.nextLong(maxFee - minFee))
+//    transfers(senderGen, recipientGen, feeGen)
+//      .zip(massTransfers(senderGen, recipientGen, feeGen))
+//      .flatMap { case (tt, mtt) => Iterator(mtt, tt) }
+//  }
+
   def txs(minFee: Long, maxFee: Long, senderAccounts: Seq[PrivateKeyAccount], recipientGen: Iterator[Address]): Iterator[Transaction] = {
     val senderGen = Iterator.randomContinually(senderAccounts)
     val feeGen    = Iterator.continually(minFee + random.nextLong(maxFee - minFee))
-    transfers(senderGen, recipientGen, feeGen)
-      .zip(massTransfers(senderGen, recipientGen, feeGen))
-      .flatMap { case (tt, mtt) => Iterator(mtt, tt) }
+
+    senderGen
+      .zip(recipientGen)
+      .zip(feeGen)
+      .map {
+        case ((src, dst), fee) =>
+          TransferTransaction.create(None, src, dst, fee, System.currentTimeMillis(), None, fee, Array.emptyByteArray)
+      }
+      .collect { case Right(x) => x }
   }
 
   def transfers(senderGen: Iterator[PrivateKeyAccount], recipientGen: Iterator[Address], feeGen: Iterator[Long]): Iterator[Transaction] = {
